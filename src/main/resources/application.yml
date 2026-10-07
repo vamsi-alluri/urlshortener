@@ -6,6 +6,11 @@ spring:
       enabled: true
   datasource:
     url: ${URLSHORTENER_DB_URL:jdbc:sqlite:./data/urlshortener.db}
+  session:
+    jdbc:
+      # SQLite is not detected as an embedded database, and Boot's session schema
+      # initializer runs with continueOnError, so `always` is restart-safe.
+      initialize-schema: always
 
 app:
   base-url: ${URLSHORTENER_BASE_URL:http://localhost:8080}
