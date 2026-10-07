@@ -1,9 +1,11 @@
 package com.urlshortener.user;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
@@ -16,6 +18,11 @@ import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
  * carry a CSRF token. {@code GET /{slug}} stays public. Page paths ({@code /}, {@code /login},
  * {@code /me}, {@code /logout}) are safe against the slug space: slugs are exactly 7 base62
  * characters.
+ *
+ * <p>The GitHub flow is wired only when a registration exists (client id/secret via env —
+ * {@code SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GITHUB_CLIENT_ID/_CLIENT_SECRET}). Without
+ * that configuration the app still boots: sign-in is unavailable, {@code /me} 401s, and the
+ * public core loop stays reachable.
  */
 @Configuration
 @EnableWebSecurity
@@ -24,7 +31,8 @@ class SecurityConfig {
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http,
             GitHubOAuth2UserService gitHubOAuth2UserService,
-            ProblemDetailAuthenticationEntryPoint problemDetailAuthenticationEntryPoint) throws Exception {
+            ProblemDetailAuthenticationEntryPoint problemDetailAuthenticationEntryPoint,
+            ObjectProvider<ClientRegistrationRepository> clientRegistrationRepository) throws Exception {
 
         http.csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
                 .authorizeHttpRequests(authorize -> authorize
@@ -34,16 +42,19 @@ class SecurityConfig {
                         // /me is an API probe: 401 problem+json, not a redirect to the sign-in page.
                         .defaultAuthenticationEntryPointFor(problemDetailAuthenticationEntryPoint,
                                 new AntPathRequestMatcher("/me")))
-                .oauth2Login(oauth2 -> oauth2
-                        .loginPage("/login")
-                        .defaultSuccessUrl("/login")
-                        .userInfoEndpoint(userinfo -> userinfo.userService(gitHubOAuth2UserService)))
                 .logout(logout -> logout
                         .logoutUrl("/logout")
                         .logoutSuccessUrl("/login?signedout")
                         .clearAuthentication(true)
                         .invalidateHttpSession(true)
                         .deleteCookies("SESSION"));
+
+        if (clientRegistrationRepository.getIfAvailable() != null) {
+            http.oauth2Login(oauth2 -> oauth2
+                    .loginPage("/login")
+                    .defaultSuccessUrl("/login")
+                    .userInfoEndpoint(userinfo -> userinfo.userService(gitHubOAuth2UserService)));
+        }
         return http.build();
     }
 }
