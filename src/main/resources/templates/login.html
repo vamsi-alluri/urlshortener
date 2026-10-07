@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8"/>
+  <title>Sign in — urlshortener</title>
+</head>
+<body>
+<main>
+  <h1>urlshortener</h1>
+
+  <!-- The signed-in indicator and the sign-out action (a real server-side logout). -->
+  <section th:if="${principal != null}">
+    <p>Signed in as <strong th:text="${principal.login}">github-login</strong>.</p>
+    <form th:action="@{/logout}" method="post">
+      <button type="submit">Sign out</button>
+    </form>
+  </section>
+
+  <!-- The only sign-in path: GitHub OAuth (ADR-0003). No JavaScript. -->
+  <section th:if="${principal == null}">
+    <p th:if="${signedOut}">You have signed out.</p>
+    <a th:href="@{/oauth2/authorization/github}">Sign in with GitHub</a>
+  </section>
+</main>
+</body>
+</html>
