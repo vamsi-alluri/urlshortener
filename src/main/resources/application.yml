@@ -6,6 +6,21 @@ spring:
       enabled: true
   datasource:
     url: ${URLSHORTENER_DB_URL:jdbc:sqlite:./data/urlshortener.db}
+    # ADR-0005: SQLite runs in WAL mode. A PRAGMA inside a Flyway migration would
+    # fail (migrations run in a transaction, where journal_mode cannot change),
+    # so WAL is enabled on every pooled connection instead.
+    hikari:
+      connection-init-sql: PRAGMA journal_mode=WAL
+  data:
+    jdbc:
+      repositories:
+        # Spring Data JDBC ships no SQLite dialect, so its auto-configured
+        # repository support fails at startup on SQLite ("Cannot determine a
+        # dialect ... Please provide a Dialect"). Nothing uses Spring Data
+        # repositories here — the Short Link store is plain JdbcTemplate — so
+        # repository auto-configuration stays off. A later ticket that wants
+        # repositories must register a Dialect via META-INF/spring.factories.
+        enabled: false
 
 app:
   base-url: ${URLSHORTENER_BASE_URL:http://localhost:8080}
