@@ -86,16 +86,22 @@ class ShortLinkController {
     /**
      * Sends a follower to the Short Link's Destination with {@code 302 Found}
      * — never a 301, and with no cache headers, so every follow reaches the
-     * service and later Clicks stay observable (ADR-0001). An unknown Slug is
-     * a {@code 404}.
+     * service and later Clicks stay observable (ADR-0001). Each live follow
+     * records one Click on the Short Link (D3) after it resolves: an unknown
+     * Slug is a {@code 404} and never counts.
      */
     @GetMapping("/{slug}")
     public ResponseEntity<Void> follow(@PathVariable("slug") String slug) {
         return service.findLiveDestinationBySlug(slug)
-                .map(destination -> ResponseEntity
-                        .status(HttpStatus.FOUND)
-                        .location(URI.create(destination))
-                        .<Void>build())
+                .map(destination -> {
+                    // after resolution, so only a live follow counts (D3) —
+                    // a 404 never reaches here, and a 410 (#6) will not either
+                    service.recordClick(slug);
+                    return ResponseEntity
+                            .status(HttpStatus.FOUND)
+                            .location(URI.create(destination))
+                            .<Void>build();
+                })
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "No Short Link exists for Slug '%s'".formatted(slug)));
     }

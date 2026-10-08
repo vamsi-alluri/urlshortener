@@ -34,6 +34,20 @@ class ShortLinkRepository {
             WHERE slug = ? AND deactivated_at IS NULL
             """;
 
+    private static final String INCREMENT_CLICK_COUNT = """
+            UPDATE links
+            SET click_count = click_count + 1
+            WHERE slug = ? AND deactivated_at IS NULL
+            """;
+
+    private static final String SELECT_PAGE_BY_OWNER = """
+            SELECT slug, destination, owner, click_count, created_at, deactivated_at
+            FROM links
+            WHERE owner = ?
+            ORDER BY created_at DESC, slug ASC
+            LIMIT ? OFFSET ?
+            """;
+
     private static final RowMapper<ShortLink> SHORT_LINK = ShortLinkRepository::toShortLink;
 
     private final JdbcTemplate jdbc;
@@ -72,6 +86,28 @@ class ShortLinkRepository {
     Optional<ShortLink> findLiveBySlug(String slug) {
         List<ShortLink> matches = jdbc.query(SELECT_LIVE_BY_SLUG, SHORT_LINK, slug);
         return matches.stream().findFirst();
+    }
+
+    /**
+     * Records one Click on the live Short Link bound to the Slug (D3): the counter
+     * column is incremented in place by a single {@code UPDATE}, so the increment
+     * is atomic and concurrent follows each land a full one. Only a live row
+     * counts — a Deactivated row is skipped, and an unknown Slug matches nothing
+     * — so 404s and 410s never count.
+     */
+    void incrementClickCount(String slug) {
+        jdbc.update(INCREMENT_CLICK_COUNT, slug);
+    }
+
+    /**
+     * One page of a User's Short Links, newest first — every row they own, live
+     * or (once #6 lands) Deactivated, for the owner's list (D12). The {@code owner}
+     * column stores the creating User's {@code users.id} as text (the #4
+     * integration note); the bind parameter is that id as a string, so the
+     * comparison stays text-to-text with no CAST.
+     */
+    List<ShortLink> pageByOwner(String owner, int limit, int offset) {
+        return jdbc.query(SELECT_PAGE_BY_OWNER, SHORT_LINK, owner, limit, offset);
     }
 
     private static ShortLink toShortLink(ResultSet rs, int rowNum) throws SQLException {

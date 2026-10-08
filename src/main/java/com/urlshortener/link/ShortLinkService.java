@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -21,6 +22,13 @@ class ShortLinkService {
      * (ADR-0004).
      */
     private static final int MAX_SLUG_ATTEMPTS = 10;
+
+    /**
+     * D13: the owner's list pages at 100 by default, and never returns more
+     * than 100 entries.
+     */
+    private static final int DEFAULT_PAGE_LIMIT = 100;
+    private static final int MAX_PAGE_LIMIT = 100;
 
     private final SlugGenerator slugGenerator;
     private final ShortLinkRepository repository;
@@ -58,6 +66,38 @@ class ShortLinkService {
      */
     Optional<String> findLiveDestinationBySlug(String slug) {
         return repository.findLiveBySlug(slug).map(ShortLink::destination);
+    }
+
+    /**
+     * Records one Click on the Short Link the Slug resolved to — every live
+     * follow increments its Click count (D3). Called by the follow path only
+     * after the Slug resolved to a live Destination: a 404 (unknown Slug)
+     * never reaches here, and a 410 (Deactivated, #6) will not either.
+     */
+    void recordClick(String slug) {
+        repository.incrementClickCount(slug);
+    }
+
+    /**
+     * Lists the owner's Short Links with their Click counts (D12), one page of
+     * D13's pagination, newest first. A null limit or offset takes the default
+     * (100 / 0); the limit clamps to at most {@value #MAX_PAGE_LIMIT} and the
+     * offset to non-negative. Strictly scoped to the one User — the rows whose
+     * owner is their {@code users.id}, never another owner's.
+     */
+    List<ShortLinkListItem> listForOwner(long ownerUserId, Integer limit, Integer offset) {
+        String owner = String.valueOf(ownerUserId);
+        int pageLimit = limit == null ? DEFAULT_PAGE_LIMIT : Math.clamp(limit, 0, MAX_PAGE_LIMIT);
+        int pageOffset = offset == null ? 0 : Math.max(offset, 0);
+        return repository.pageByOwner(owner, pageLimit, pageOffset).stream()
+                .map(link -> new ShortLinkListItem(
+                        link.slug(),
+                        baseUrl + "/" + link.slug(),
+                        link.destination(),
+                        link.clickCount(),
+                        link.createdAt().toString(),
+                        link.deactivatedAt() != null))
+                .toList();
     }
 
     private static String stripTrailingSlash(String baseUrl) {

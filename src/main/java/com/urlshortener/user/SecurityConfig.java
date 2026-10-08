@@ -17,8 +17,8 @@ import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
  *
  * <p>Everything is open except the User-only surfaces: {@code GET /me} (and the session
  * probe it stands for), the key page {@code /me/key}, and {@code /api/**} — issue #4
- * requires a User to create a Short Link, so every link has an attributable owner; nothing
- * else lives under {@code /api} until #5's key-authenticated list. {@code /api/**} is
+ * requires a User to create a Short Link, so every link has an attributable owner, and
+ * #5's key-authenticated list ({@code GET /api/links}) rides the same gate. {@code /api/**} is
  * CSRF-exempt because an API caller has no session to carry a CSRF token. {@code GET /{slug}} stays public. Page paths
  * ({@code /}, {@code /login}, {@code /me}, {@code /me/key}, {@code /logout}) are safe against
  * the slug space: slugs are exactly 7 base62 characters.
