@@ -34,6 +34,12 @@ class ShortLinkRepository {
             WHERE slug = ? AND deactivated_at IS NULL
             """;
 
+    private static final String INCREMENT_CLICK_COUNT = """
+            UPDATE links
+            SET click_count = click_count + 1
+            WHERE slug = ? AND deactivated_at IS NULL
+            """;
+
     private static final String SELECT_BY_SLUG = """
             SELECT slug, destination, owner, click_count, created_at, deactivated_at
             FROM links
@@ -44,6 +50,14 @@ class ShortLinkRepository {
             UPDATE links
             SET deactivated_at = ?
             WHERE slug = ? AND owner = ? AND deactivated_at IS NULL
+            """;
+
+    private static final String SELECT_PAGE_BY_OWNER = """
+            SELECT slug, destination, owner, click_count, created_at, deactivated_at
+            FROM links
+            WHERE owner = ?
+            ORDER BY created_at DESC, slug ASC
+            LIMIT ? OFFSET ?
             """;
 
     private static final RowMapper<ShortLink> SHORT_LINK = ShortLinkRepository::toShortLink;
@@ -87,6 +101,17 @@ class ShortLinkRepository {
     }
 
     /**
+     * Records one Click on the live Short Link bound to the Slug (D3): the counter
+     * column is incremented in place by a single {@code UPDATE}, so the increment
+     * is atomic and concurrent follows each land a full one. Only a live row
+     * counts — a Deactivated row is skipped, and an unknown Slug matches nothing
+     * — so 404s and 410s never count.
+     */
+    void incrementClickCount(String slug) {
+        jdbc.update(INCREMENT_CLICK_COUNT, slug);
+    }
+
+    /**
      * Finds the Short Link bound to a Slug — Deactivated rows included, unlike
      * {@link #findLiveBySlug}: deactivation (issue #6) reads the row to answer
      * 404, 409, or 410 on a Slug that no longer resolves.
@@ -107,6 +132,17 @@ class ShortLinkRepository {
     boolean deactivate(String slug, String owner, Instant deactivatedAt) {
         return jdbc.update(DEACTIVATE_LIVE_BY_SLUG_AND_OWNER,
                 deactivatedAt.toString(), slug, owner) > 0;
+    }
+
+    /**
+     * One page of a User's Short Links, newest first — every row they own, live
+     * or Deactivated, for the owner's list (D12). The {@code owner}
+     * column stores the creating User's {@code users.id} as text (the #4
+     * integration note); the bind parameter is that id as a string, so the
+     * comparison stays text-to-text with no CAST.
+     */
+    List<ShortLink> pageByOwner(String owner, int limit, int offset) {
+        return jdbc.query(SELECT_PAGE_BY_OWNER, SHORT_LINK, owner, limit, offset);
     }
 
     private static ShortLink toShortLink(ResultSet rs, int rowNum) throws SQLException {
