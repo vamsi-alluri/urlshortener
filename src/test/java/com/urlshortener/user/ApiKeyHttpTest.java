@@ -162,17 +162,6 @@ class ApiKeyHttpTest extends AbstractGitHubSignInHttpTest {
     }
 
     @Test
-    void unauthenticatedLinkCreationStillWorks() throws Exception {
-        // regression guard until #4: POST /api/links stays open with no session and no key
-        Exchange created = postJson(noRedirects(), appUrl("/api/links"),
-                "{\"destination\":\"https://example.com/with-no-credential\"}");
-        assertThat(created.status()).as("creation stays unauthenticated until #4").isEqualTo(201);
-        String slug = (String) JsonPath.read(created.body(), "$.slug");
-        assertThat(slug).matches("[A-Za-z0-9]{7}");
-        assertThat((String) JsonPath.read(created.body(), "$.short_url")).endsWith("/" + slug);
-    }
-
-    @Test
     void aVisitorIsRedirectedToTheSignInPageFromTheKeyPage() throws Exception {
         // the key page is session-authenticated like /me, but it is a page for browsers: a
         // Visitor is sent to the sign-in page, not answered with 401 problem+json
