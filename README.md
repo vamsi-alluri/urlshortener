@@ -45,11 +45,15 @@ The Slug is always system-generated (never user-chosen — ADR-0004): random, 7 
 
 ### Who am I — `GET /me`
 
-Signed in: `{"id","githubId","login"}`. Otherwise `401` problem+json.
+Session or API key (`Authorization: Bearer <key>`): `{"id","githubId","login"}`. Otherwise `401` problem+json — including for a malformed, unknown, or revoked key.
+
+### Your API key — `GET /me/key` · `POST /me/key`
+
+One key per User, ever: `ush_` + 32 random base62 characters (~190 bits). Issued on your first visit to the key page (session required) and shown exactly once — it is stored as a SHA-256 hash and cannot be displayed again. `POST /me/key` (the Regenerate button, session-authenticated) revokes the previous key the instant it is pressed and shows the new one exactly once. Use it as `Authorization: Bearer <key>` on `GET /me` today; authenticated creation arrives with #4.
 
 ### Coming on the board
 
-#3 single API Key per User (`Authorization: Bearer`) · #4 authenticated creation + destination validation · #5 Click counts + your links · #6 deactivation → 410 · #7 rate limits per key · #9 the real deployment.
+#4 authenticated creation + destination validation · #5 Click counts + your links · #6 deactivation → 410 · #7 rate limits per key · #9 the real deployment.
 
 ## Running
 
