@@ -27,3 +27,8 @@ spring:
 
 app:
   base-url: ${URLSHORTENER_BASE_URL:http://localhost:8080}
+  # The per-key creation throttle (issue #7, D15): a config value, not a policy —
+  # human-generous, and there is no lifetime quota anywhere. The default also lives
+  # in RateLimitProperties (for contexts without this file).
+  rate-limit:
+    creations-per-hour: ${URLSHORTENER_RATE_LIMIT_CREATIONS_PER_HOUR:60}

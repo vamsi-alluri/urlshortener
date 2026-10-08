@@ -1,5 +1,6 @@
 package com.urlshortener.user;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -44,11 +45,16 @@ class SecurityConfig {
             GitHubOAuth2UserService gitHubOAuth2UserService,
             ProblemDetailAuthenticationEntryPoint problemDetailAuthenticationEntryPoint,
             ApiKeyService apiKeys,
+            CreationRateLimiter creations,
+            ObjectMapper objectMapper,
             ObjectProvider<ClientRegistrationRepository> clientRegistrationRepository) throws Exception {
 
         http.csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
                 .addFilterBefore(new BearerAuthenticationFilter(apiKeys, problemDetailAuthenticationEntryPoint),
                         UsernamePasswordAuthenticationFilter.class)
+                // issue #7 (D15/D16): the per-key creation throttle — after the Bearer seam
+                // (the identity exists; a bad key already failed closed), creation only
+                .addFilterAfter(new RateLimitFilter(creations, objectMapper), BearerAuthenticationFilter.class)
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/me", "/me/key", "/api/**").authenticated()
                         .anyRequest().permitAll())
