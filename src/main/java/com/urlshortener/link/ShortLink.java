@@ -8,7 +8,8 @@ import java.time.Instant;
  *
  * @param slug          the system-assigned, case-sensitive identifier (ADR-0004)
  * @param destination   the long public web URL the Slug resolves to (ADR-0002: immutable)
- * @param owner         the creating User, null until ticket #4 fills it
+ * @param owner         the creating User's {@code users.id} as text, recorded at creation (issue #4);
+ *                      null only on rows created before #4
  * @param clickCount    running total of follows of this Short Link; ticket #5 increments it
  * @param createdAt     when the Short Link was created
  * @param deactivatedAt when the Short Link was Deactivated; null while it still resolves

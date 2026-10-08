@@ -10,8 +10,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Marks a field as a Destination: a long public web URL over http or https
- * (GLOSSARY). Anything else fails request validation with a {@code 400}.
+ * Marks a field as a Destination: a long public web URL — absolute http or
+ * https with a host, on a public host, at most 2048 characters (GLOSSARY,
+ * issue #4). Anything else fails request validation with a {@code 400}
+ * problem+json that reports every broken rule's type code (D10).
  */
 @Documented
 @Target(ElementType.FIELD)

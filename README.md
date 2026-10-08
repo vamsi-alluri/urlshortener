@@ -15,10 +15,11 @@ All errors are RFC 7807 `application/problem+json` (`{"type","title","status","d
 
 ### Create a Short Link — `POST /api/links`
 
-Unauthenticated in the current version (API-key auth arrives with #4); the route is CSRF-exempt.
+Authenticated: the developer's API key (`Authorization: Bearer <key>` — see below). The route is CSRF-exempt, so scripts work with the one credential; every created Short Link is attributed to the keyholder as its owner.
 
 ```
 curl -X POST https://short.vamsi-alluri.me/api/links \
+  -H "Authorization: Bearer ush_..." \
   -H "Content-Type: application/json" \
   -d '{"destination": "https://example.com/a/very/long/url"}'
 ```
@@ -29,7 +30,19 @@ curl -X POST https://short.vamsi-alluri.me/api/links \
 {"slug": "aB3xK9z", "short_url": "https://short.vamsi-alluri.me/aB3xK9z", "destination": "https://example.com/a/very/long/url"}
 ```
 
-Errors: `400` when the Destination is not an absolute http/https URL (full validation rules land with #4).
+Without a valid key: `401` problem+json.
+
+The Destination must be a public web URL (#4), checked syntactically — no DNS resolution at creation (ADR-0006):
+
+- http or https, absolute, with a host — `javascript:`, `data:`, `ftp:`, `mailto:` are rejected (`invalid_scheme`)
+- a public host — `localhost`, `*.localhost`, and private/loopback/link-local IP literals (127/8, 10/8, 172.16/12, 192.168/16, 169.254/16, `::1`, `fc00::/7`, `fe80::/10`) are rejected (`private_destination`)
+- at most 2048 characters (`destination_too_long`)
+
+A rejected Destination answers `400` problem+json with every broken rule at once:
+
+```json
+{"type":"about:blank","title":"Bad Request","status":400,"detail":"The Destination is not a valid public web URL.","instance":"/api/links","violations":[{"type":"private_destination","detail":"The Destination's host must be public: localhost, *.localhost, and private, loopback, and link-local IP addresses are not allowed."}]}
+```
 
 The Slug is always system-generated (never user-chosen — ADR-0004): random, 7 characters, mixed-case base62, case-sensitive. Every creation makes a new Short Link, even for a Destination that already exists.
 
@@ -49,11 +62,11 @@ Session or API key (`Authorization: Bearer <key>`): `{"id","githubId","login"}`.
 
 ### Your API key — `GET /me/key` · `POST /me/key`
 
-One key per User, ever: `ush_` + 32 random base62 characters (~190 bits). Issued on your first visit to the key page (session required) and shown exactly once — it is stored as a SHA-256 hash and cannot be displayed again. `POST /me/key` (the Regenerate button, session-authenticated) revokes the previous key the instant it is pressed and shows the new one exactly once. Use it as `Authorization: Bearer <key>` on `GET /me` today; authenticated creation arrives with #4.
+One key per User, ever: `ush_` + 32 random base62 characters (~190 bits). Issued on your first visit to the key page (session required) and shown exactly once — it is stored as a SHA-256 hash and cannot be displayed again. `POST /me/key` (the Regenerate button, session-authenticated) revokes the previous key the instant it is pressed and shows the new one exactly once. Use it as `Authorization: Bearer <key>` on `GET /me` and to create Short Links at `POST /api/links`.
 
 ### Coming on the board
 
-#4 authenticated creation + destination validation · #5 Click counts + your links · #6 deactivation → 410 · #7 rate limits per key · #9 the real deployment.
+#5 Click counts + your links · #6 deactivation → 410 · #7 rate limits per key · #9 the real deployment.
 
 ## Running
 

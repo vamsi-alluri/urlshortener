@@ -34,14 +34,15 @@ class ShortLinkService {
     }
 
     /**
-     * Creates a Short Link binding a fresh random Slug to the Destination, and
-     * returns it with the full short_url. Creation is temporarily open to make
-     * the core loop demoable; ticket #4 gates it behind authentication.
+     * Creates a Short Link binding a fresh random Slug to the Destination on
+     * behalf of the creating User — their {@code users.id}, recorded as the
+     * link's owner (issue #4) — and returns it with the full short_url.
      */
-    CreateShortLinkResponse create(String destination) {
+    CreateShortLinkResponse create(String destination, long ownerUserId) {
         for (int attempt = 0; attempt < MAX_SLUG_ATTEMPTS; attempt++) {
             String slug = slugGenerator.next();
-            ShortLink link = new ShortLink(slug, destination, null, 0, Instant.now(), null);
+            ShortLink link = new ShortLink(slug, destination, String.valueOf(ownerUserId), 0,
+                    Instant.now(), null);
             if (repository.insert(link)) {
                 return new CreateShortLinkResponse(slug, baseUrl + "/" + slug, destination);
             }
