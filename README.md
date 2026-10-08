@@ -46,11 +46,24 @@ A rejected Destination answers `400` problem+json with every broken rule at once
 
 The Slug is always system-generated (never user-chosen — ADR-0004): random, 7 characters, mixed-case base62, case-sensitive. Every creation makes a new Short Link, even for a Destination that already exists.
 
+### Deactivate a Short Link — `DELETE /api/links/{slug}`
+
+Authenticated with the owner's API key, owner-only. One-way, no undo — the Destination stays immutable (ADR-0002) and the row stays with `deactivated_at` set, so the Slug is never reissued (ADR-0004):
+
+```
+curl -X DELETE https://short.vamsi-alluri.me/api/links/aB3xK9z \
+  -H "Authorization: Bearer ush_..."
+```
+
+- `204` on success; following the Short Link then answers a bodyless `410 Gone` that counts no Click
+- `404` problem+json when the Slug is unknown or belongs to another User (the two answer identically — no existence leak)
+- `409` problem+json when the Short Link is already Deactivated
+
 ### Follow a Short Link — `GET /{slug}`
 
 - Live Short Link → `302 Found` with `Location: <destination>` (never a 301 — ADR-0001)
 - Unknown Slug → `404` problem+json
-- Deactivated Short Link → `410 Gone` (lands with #6)
+- Deactivated Short Link → bodyless `410 Gone`
 
 ### Sign in / out — `GET /login` · `POST /logout`
 
@@ -66,7 +79,7 @@ One key per User, ever: `ush_` + 32 random base62 characters (~190 bits). Issued
 
 ### Coming on the board
 
-#5 Click counts + your links · #6 deactivation → 410 · #7 rate limits per key · #9 the real deployment.
+#5 Click counts + your links · #7 rate limits per key · #9 the real deployment.
 
 ## Running
 
