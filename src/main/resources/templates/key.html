@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8"/>
+  <title>Your API key — urlshortener</title>
+</head>
+<body>
+<main>
+  <h1>Your API key</h1>
+
+  <!-- The only moment the key exists in the clear: the response that issued it (D8). -->
+  <section th:if="${issuedKey != null}">
+    <p th:if="${regenerated}">Your previous key has been revoked. This is the new one:</p>
+    <p th:unless="${regenerated}">This is your API key:</p>
+    <p><code th:text="${issuedKey}">ush_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code></p>
+    <p><strong>Shown only once.</strong> It is stored hashed and cannot be displayed
+      again — if you lose it, regenerate a new one below.</p>
+  </section>
+
+  <!-- Later visits: the key is active, but only its hash is stored (D8). -->
+  <section th:if="${issuedKey == null}">
+    <p>Your API key is active, but it is stored hashed — it cannot be shown again.</p>
+  </section>
+
+  <!-- Regeneration: replaces the key, revoking the previous one instantly. -->
+  <section>
+    <form th:action="@{/me/key}" method="post">
+      <button type="submit">Regenerate API key</button>
+    </form>
+    <p>Regenerating immediately revokes the current key — anything still using it stops
+      working.</p>
+  </section>
+
+  <p><a th:href="@{/login}">Back to the front page</a></p>
+</main>
+</body>
+</html>
