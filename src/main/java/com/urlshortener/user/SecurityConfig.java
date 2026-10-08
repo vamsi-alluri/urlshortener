@@ -10,16 +10,20 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
 
 /**
- * The security surface of issues #2–#4: GitHub OAuth sign-in, a JDBC-backed session,
- * sign-out, the Bearer API Key, and authenticated creation.
+ * The security surface of issues #2–#4 and #19: GitHub OAuth sign-in, a JDBC-backed
+ * session, sign-out, the Bearer API Key, authenticated creation, and the browser
+ * pages that ride the same authentication.
  *
- * <p>Everything is open except the User-only surfaces: {@code GET /me} (and the session
- * probe it stands for), the key page {@code /me/key}, and {@code /api/**} — issue #4
- * requires a User to create a Short Link, so every link has an attributable owner; nothing
- * else lives under {@code /api} until #5's key-authenticated list. {@code /api/**} is
- * CSRF-exempt because an API caller has no session to carry a CSRF token. {@code GET /{slug}} stays public. Page paths
+ * <p>Everything is open except the User-only surfaces: the home page and its create form
+ * ({@code /} and {@code /shorten}, #19 — a browser form needs its session User as the link's
+ * owner, exactly like the API), {@code GET /me} (and the session probe it stands for), the key
+ * page {@code /me/key}, and {@code /api/**} — issue #4 requires a User to create a Short Link,
+ * so every link has an attributable owner; nothing else lives under {@code /api} until #5's
+ * key-authenticated list. {@code /api/**} is CSRF-exempt because an API caller has no session
+ * to carry a CSRF token; the browser pages keep CSRF on for the same reason. {@code GET /{slug}} stays public. Page paths
  * ({@code /}, {@code /login}, {@code /me}, {@code /me/key}, {@code /logout}) are safe against
  * the slug space: slugs are exactly 7 base62 characters.
  *
@@ -50,7 +54,7 @@ class SecurityConfig {
                 .addFilterBefore(new BearerAuthenticationFilter(apiKeys, problemDetailAuthenticationEntryPoint),
                         UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/me", "/me/key", "/api/**").authenticated()
+                        .requestMatchers("/", "/shorten", "/me", "/me/key", "/api/**").authenticated()
                         .anyRequest().permitAll())
                 .exceptionHandling(exception -> exception
                         // API paths answer 401 problem+json — an API caller never gets a
@@ -59,10 +63,13 @@ class SecurityConfig {
                                 new AntPathRequestMatcher("/api/**"))
                         .defaultAuthenticationEntryPointFor(problemDetailAuthenticationEntryPoint,
                                 new AntPathRequestMatcher("/me"))
-                        // the key page is for browsers: an unauthenticated Visitor is redirected to
-                        // the sign-in page, which itself stays honest when GitHub is unconfigured (#14).
+                        // the browser pages are for humans — the home page and its create form (#19)
+                        // alongside the key page: an unauthenticated Visitor is redirected to the
+                        // sign-in page, which itself stays honest when GitHub is unconfigured (#14).
                         .defaultAuthenticationEntryPointFor(new LoginUrlAuthenticationEntryPoint("/login"),
-                                new AntPathRequestMatcher("/me/key")))
+                                new OrRequestMatcher(new AntPathRequestMatcher("/"),
+                                        new AntPathRequestMatcher("/shorten"),
+                                        new AntPathRequestMatcher("/me/key"))))
                 .logout(logout -> logout
                         .logoutUrl("/logout")
                         .logoutSuccessUrl("/login?signedout")

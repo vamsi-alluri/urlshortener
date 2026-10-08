@@ -11,6 +11,8 @@
   <!-- The signed-in indicator and the sign-out action (a real server-side logout). -->
   <section th:if="${principal != null}">
     <p>Signed in as <strong th:text="${principal.login}">github-login</strong>.</p>
+    <!-- The home page: the browser's create form, and the API Key behind it (#19). -->
+    <p><a th:href="@{/}">Create a Short Link</a></p>
     <form th:action="@{/logout}" method="post">
       <button type="submit">Sign out</button>
     </form>
