@@ -34,6 +34,18 @@ class ShortLinkRepository {
             WHERE slug = ? AND deactivated_at IS NULL
             """;
 
+    private static final String SELECT_BY_SLUG = """
+            SELECT slug, destination, owner, click_count, created_at, deactivated_at
+            FROM links
+            WHERE slug = ?
+            """;
+
+    private static final String DEACTIVATE_LIVE_BY_SLUG_AND_OWNER = """
+            UPDATE links
+            SET deactivated_at = ?
+            WHERE slug = ? AND owner = ? AND deactivated_at IS NULL
+            """;
+
     private static final RowMapper<ShortLink> SHORT_LINK = ShortLinkRepository::toShortLink;
 
     private final JdbcTemplate jdbc;
@@ -72,6 +84,29 @@ class ShortLinkRepository {
     Optional<ShortLink> findLiveBySlug(String slug) {
         List<ShortLink> matches = jdbc.query(SELECT_LIVE_BY_SLUG, SHORT_LINK, slug);
         return matches.stream().findFirst();
+    }
+
+    /**
+     * Finds the Short Link bound to a Slug — Deactivated rows included, unlike
+     * {@link #findLiveBySlug}: deactivation (issue #6) reads the row to answer
+     * 404, 409, or 410 on a Slug that no longer resolves.
+     */
+    Optional<ShortLink> findBySlug(String slug) {
+        List<ShortLink> matches = jdbc.query(SELECT_BY_SLUG, SHORT_LINK, slug);
+        return matches.stream().findFirst();
+    }
+
+    /**
+     * Marks the owner's live Short Link Deactivated — the one lifecycle change
+     * a Short Link has (ADR-0002) — and returns {@code true}. Returns
+     * {@code false}, touching nothing, when the Slug is unknown, belongs to
+     * another User, or is already Deactivated. The row always stays, so the
+     * Slug is never reissued (ADR-0004). The timestamp is ISO-8601 UTC text,
+     * the {@code deactivated_at} column's storage format since V1.
+     */
+    boolean deactivate(String slug, String owner, Instant deactivatedAt) {
+        return jdbc.update(DEACTIVATE_LIVE_BY_SLUG_AND_OWNER,
+                deactivatedAt.toString(), slug, owner) > 0;
     }
 
     private static ShortLink toShortLink(ResultSet rs, int rowNum) throws SQLException {

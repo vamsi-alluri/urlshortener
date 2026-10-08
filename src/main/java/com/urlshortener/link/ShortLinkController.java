@@ -8,6 +8,7 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,8 +24,9 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * The Short Link routes (G5): create at {@code POST /api/links}, follow at
- * {@code GET /{slug}}. Creation is authenticated (issue #4): {@code SecurityConfig}
+ * The Short Link routes (G5): create at {@code POST /api/links}, deactivate at
+ * {@code DELETE /api/links/{slug}} (issue #6), follow at {@code GET /{slug}}.
+ * Creation and deactivation are authenticated (issue #4): {@code SecurityConfig}
  * requires a User on {@code /api/**} — an API Key holder via the Bearer filter, a
  * signed-in session via the OAuth2 login — and the new Short Link is attributed to
  * that User.
@@ -84,10 +86,31 @@ class ShortLinkController {
     }
 
     /**
+     * Deactivates the authenticated User's own Short Link (issue #6, D14) —
+     * one-way, no undo: the Destination stays immutable (ADR-0002) and
+     * deactivation is the one lifecycle change a Short Link has. Answers
+     * {@code 204} with no body; {@code 404} when the Slug is unknown or
+     * belongs to another User — the two answer identically, so nothing leaks
+     * about which Short Links exist; {@code 409} when it is already
+     * Deactivated. The row stays with {@code deactivated_at} set, so the Slug
+     * is never reissued (ADR-0004), and follows answer a bodyless 410.
+     */
+    @DeleteMapping("/api/links/{slug}")
+    public ResponseEntity<Void> deactivate(
+            @PathVariable("slug") String slug,
+            @AuthenticationPrincipal GitHubPrincipalUser principal) {
+        Objects.requireNonNull(principal,
+                "SecurityConfig authenticates DELETE /api/links/{slug}, so the principal is present");
+        service.deactivate(slug, principal.getUserId());
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
      * Sends a follower to the Short Link's Destination with {@code 302 Found}
      * — never a 301, and with no cache headers, so every follow reaches the
      * service and later Clicks stay observable (ADR-0001). An unknown Slug is
-     * a {@code 404}.
+     * a {@code 404}; a Deactivated Short Link is a bodyless {@code 410 Gone}
+     * (issue #6, Q16) that never counts a Click.
      */
     @GetMapping("/{slug}")
     public ResponseEntity<Void> follow(@PathVariable("slug") String slug) {
@@ -96,7 +119,19 @@ class ShortLinkController {
                         .status(HttpStatus.FOUND)
                         .location(URI.create(destination))
                         .<Void>build())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "No Short Link exists for Slug '%s'".formatted(slug)));
+                .orElseGet(() -> goneIfDeactivated(slug));
+    }
+
+    /**
+     * The miss branch of follow (issue #6): a Slug bound to a Deactivated
+     * Short Link answers a bodyless 410 — one-way, deliberately dead (Q16);
+     * a Slug bound to nothing is the 404 it always was.
+     */
+    private ResponseEntity<Void> goneIfDeactivated(String slug) {
+        if (service.isDeactivated(slug)) {
+            return ResponseEntity.status(HttpStatus.GONE).<Void>build();
+        }
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                "No Short Link exists for Slug '%s'".formatted(slug));
     }
 }

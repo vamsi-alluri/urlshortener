@@ -10,7 +10,8 @@ import java.util.Optional;
 
 /**
  * The core loop (issue #1): creating a Short Link for a Destination, and
- * resolving a live Slug back to its Destination.
+ * resolving a live Slug back to its Destination. Deactivation (issue #6) is
+ * the one lifecycle change a Short Link has (ADR-0002).
  */
 @Service
 class ShortLinkService {
@@ -58,6 +59,42 @@ class ShortLinkService {
      */
     Optional<String> findLiveDestinationBySlug(String slug) {
         return repository.findLiveBySlug(slug).map(ShortLink::destination);
+    }
+
+    /**
+     * Deactivates the User's own Short Link (issue #6, D14) — one-way, no undo:
+     * the row stays with {@code deactivated_at} set, so the Slug is never
+     * reissued (ADR-0004), and follows answer 410.
+     *
+     * <p>An unknown Slug and another User's Slug both answer 404 with the same
+     * detail, so the response leaks nothing about which Short Links exist. A
+     * second deactivation answers 409 — whether it was seen on the read or the
+     * write lost the race to a concurrent first one.
+     */
+    void deactivate(String slug, long ownerUserId) {
+        String owner = String.valueOf(ownerUserId);
+        ShortLink link = repository.findBySlug(slug).orElse(null);
+        if (link == null || !owner.equals(link.owner())) {
+            // an unknown Slug and another User's Slug answer identically — no existence leak
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "No Short Link exists for Slug '%s'".formatted(slug));
+        }
+        if (link.deactivatedAt() != null
+                || !repository.deactivate(slug, owner, Instant.now())) {
+            // already Deactivated on the read, or a concurrent deactivation won the write
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Short Link '%s' is already Deactivated.".formatted(slug));
+        }
+    }
+
+    /**
+     * Whether the Slug is bound to a Deactivated Short Link — the follow path's
+     * miss branch (issue #6): a Deactivated Slug answers 410, not 404.
+     */
+    boolean isDeactivated(String slug) {
+        return repository.findBySlug(slug)
+                .map(link -> link.deactivatedAt() != null)
+                .orElse(false);
     }
 
     private static String stripTrailingSlash(String baseUrl) {
