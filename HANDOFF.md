@@ -59,14 +59,11 @@ Machine: Windows 11, PowerShell (quote paths); Maven 3.9.12 on JDK 23 (`mvn`), J
 After each merged version: kill the 8080 listener (`Get-NetTCPConnection -LocalPort 8080 -State Listen` → `Stop-Process -Id <pid> -Force`), then in the background:
 
 ```powershell
-$env:URLSHORTENER_DB_URL="jdbc:sqlite:./data/local.db"
-$env:URLSHORTENER_BASE_URL="https://short.vamsi-alluri.me"
-$env:SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GITHUB_CLIENT_ID="<ask the operator>"
-$env:SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GITHUB_CLIENT_SECRET="<ask the operator>"
+Get-Content .env | ForEach-Object { if ($_ -match '^\s*([^#=\s]+)\s*=\s*(.*)\s*$') { Set-Item "env:$($matches[1])" $matches[2] } }
 mvn spring-boot:run
 ```
 
-The GitHub OAuth credentials were supplied by the operator in the prior session — **ask for them again; never store the secret in this public repo.** The persistent dev DB is `./data/local.db` (gitignored). Probe the public URL and verify the version's behavior live, then report.
+All launch configuration lives in **`.env` at the repo root — gitignored (`.gitignore` line 4; verify with `git check-ignore .env`), never committed to this public repo**: `URLSHORTENER_DB_URL`, `URLSHORTENER_BASE_URL`, and the GitHub OAuth client id/secret (supplied by the operator). The persistent dev DB is `./data/local.db` (gitignored). Probe the public URL and verify the version's behavior live, then report.
 
 Public access: `https://short.vamsi-alluri.me` (the operator's Cloudflare tunnel → tailnet → this machine) · direct on the tailnet: `http://100.93.117.80:8080` (`zephrus-g16.tailbe6ae6.ts.net`). JSON bodies for curl on PowerShell: write to a file and use `-d "@file"` (inline quoting gets mangled).
 
