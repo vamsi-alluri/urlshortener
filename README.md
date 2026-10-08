@@ -32,6 +32,8 @@ curl -X POST https://short.vamsi-alluri.me/api/links \
 
 Without a valid key: `401` problem+json.
 
+Creation is rate-limited per API key (issue #7): beyond the hourly allowance the next creation answers `429` problem+json with a `Retry-After` header — the whole seconds to wait for the next slot. The allowance refills continuously (default 60 creations per hour, `URLSHORTENER_RATE_LIMIT_CREATIONS_PER_HOUR`); there is no lifetime quota, and nothing but creation is limited — `GET /me`, the future reads on `/api/**`, and the redirect are never throttled.
+
 The Destination must be a public web URL (#4), checked syntactically — no DNS resolution at creation (ADR-0006):
 
 - http or https, absolute, with a host — `javascript:`, `data:`, `ftp:`, `mailto:` are rejected (`invalid_scheme`)
@@ -79,12 +81,13 @@ One key per User, ever: `ush_` + 32 random base62 characters (~190 bits). Issued
 
 ### Coming on the board
 
-#5 Click counts + your links · #7 rate limits per key · #9 the real deployment.
+#5 Click counts + your links · #19 the browser UI · #8 Moderation + abuse contact · #9 the real deployment.
 
 ## Running
 
 - Database: SQLite file at `URLSHORTENER_DB_URL` (default `jdbc:sqlite:./data/urlshortener.db`).
 - Public base URL: `URLSHORTENER_BASE_URL` (default `http://localhost:8080`).
+- Per-key creation allowance: `URLSHORTENER_RATE_LIMIT_CREATIONS_PER_HOUR` (default 60 — issue #7).
 - GitHub OAuth app credentials (create at <https://github.com/settings/developers> with authorization callback URL `<base-url>/login/oauth2/code/github`), supplied as environment variables (standard Spring relaxed binding):
   - `SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GITHUB_CLIENT_ID`
   - `SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GITHUB_CLIENT_SECRET`
