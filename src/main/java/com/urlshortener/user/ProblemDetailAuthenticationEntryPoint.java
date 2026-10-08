@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 /**
  * Answers unauthenticated requests to protected API endpoints with a 401 problem+json document
  * (issue #2: {@code GET /me} is the session probe that API consumers and the key page build
- * on, not a page for browsers).
+ * on, not a page for browsers; issue #3: rejected Bearer credentials answer through it too).
  */
 @Component
 final class ProblemDetailAuthenticationEntryPoint implements AuthenticationEntryPoint {
@@ -30,8 +30,12 @@ final class ProblemDetailAuthenticationEntryPoint implements AuthenticationEntry
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response,
             AuthenticationException authenticationException) throws IOException {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED,
-                "Sign in with GitHub to continue.");
+        write(response, "Sign in with GitHub to continue.");
+    }
+
+    /** Writes the 401 problem+json document with the given detail. */
+    void write(HttpServletResponse response, String detail) throws IOException {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, detail);
         problem.setType(URI.create("about:blank"));
         problem.setTitle(HttpStatus.UNAUTHORIZED.getReasonPhrase());
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
