@@ -216,6 +216,30 @@ abstract class AbstractGitHubSignInHttpTest {
         return exchange(client, builder.build());
     }
 
+    /** GET with an {@code Authorization: Bearer} credential — the machine path (issue #3, D9). */
+    static Exchange getWithBearer(HttpClient client, String url, String bearerKey, String... sessionCookies)
+            throws Exception {
+        HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(url)).GET()
+                .header("Authorization", "Bearer " + bearerKey);
+        String cookie = cookieHeader(sessionCookies);
+        if (cookie != null) {
+            builder.header("Cookie", cookie);
+        }
+        return exchange(client, builder.build());
+    }
+
+    /** POSTs a JSON document — the API contract of {@code POST /api/links}. */
+    static Exchange postJson(HttpClient client, String url, String json, String... sessionCookies) throws Exception {
+        HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(url))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(json));
+        String cookie = cookieHeader(sessionCookies);
+        if (cookie != null) {
+            builder.header("Cookie", cookie);
+        }
+        return exchange(client, builder.build());
+    }
+
     static Exchange postForm(HttpClient client, String url, Map<String, String> form, String... sessionCookies)
             throws Exception {
         HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(url))
