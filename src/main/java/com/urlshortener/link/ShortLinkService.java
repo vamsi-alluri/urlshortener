@@ -12,10 +12,13 @@ import java.util.Optional;
 /**
  * The core loop (issue #1): creating a Short Link for a Destination, and
  * resolving a live Slug back to its Destination. Deactivation (issue #6) is
- * the one lifecycle change a Short Link has (ADR-0002).
+ * the one lifecycle change a Short Link has (ADR-0002). Both surfaces ride
+ * this one loop — the JSON API of #1/#4 and the browser form of #19 — so a
+ * Destination created in the browser and one created with an API Key are
+ * the same creation, under the same ownership rule.
  */
 @Service
-class ShortLinkService {
+public class ShortLinkService {
 
     /**
      * With 62^7 (~3.5 trillion) possible Slugs, collisions are near-impossible;
@@ -47,7 +50,7 @@ class ShortLinkService {
      * behalf of the creating User — their {@code users.id}, recorded as the
      * link's owner (issue #4) — and returns it with the full short_url.
      */
-    CreateShortLinkResponse create(String destination, long ownerUserId) {
+    public CreateShortLinkResponse create(String destination, long ownerUserId) {
         for (int attempt = 0; attempt < MAX_SLUG_ATTEMPTS; attempt++) {
             String slug = slugGenerator.next();
             ShortLink link = new ShortLink(slug, destination, String.valueOf(ownerUserId), 0,

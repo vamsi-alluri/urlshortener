@@ -82,6 +82,10 @@ Pagination: `limit` (default 100; values over 100 clamp to 100) and `offset` (de
 
 "Sign in with GitHub" only (ADR-0003). Requires the server's OAuth app credentials (see Running below); unconfigured, the app boots and serves the API but sign-in is unavailable.
 
+### The home page — `GET /` · `POST /shorten`
+
+The browser surface (#19), server-rendered with no JavaScript (D6): a signed-in User pastes a Destination into the home page form and gets the short_url — the same validation rules, the same violation type codes, and the same session-User ownership as the API. A Visitor is redirected to `/login`. `POST /shorten` is a session-authenticated, CSRF-checked form post (only `/api/**` is CSRF-exempt); the creation throttle (#7, D16) applies to `POST /api/links` only. The page links to the key page, where the API key is issued and shown once.
+
 ### Who am I — `GET /me`
 
 Session or API key (`Authorization: Bearer <key>`): `{"id","githubId","login"}`. Otherwise `401` problem+json — including for a malformed, unknown, or revoked key.
@@ -92,7 +96,7 @@ One key per User, ever: `ush_` + 32 random base62 characters (~190 bits). Issued
 
 ### Coming on the board
 
-#19 the browser UI · #8 Moderation + abuse contact · #9 the real deployment.
+#8 Moderation + abuse contact · #9 the real deployment.
 
 ## Running
 

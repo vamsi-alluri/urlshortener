@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8"/>
+  <title>Create a Short Link — urlshortener</title>
+</head>
+<body>
+<main>
+  <h1>urlshortener</h1>
+
+  <!-- The signed-in indicator (the session User) and the sign-out action. -->
+  <section>
+    <p>Signed in as <strong th:text="${principal.login}">github-login</strong>.</p>
+    <form th:action="@{/logout}" method="post">
+      <button type="submit">Sign out</button>
+    </form>
+  </section>
+
+  <!-- Create a Short Link in the browser (issue #19): a Destination in, a short_url out.
+       The hidden CSRF token rides the form (Thymeleaf renders it for th:action). -->
+  <section>
+    <h2>Create a Short Link</h2>
+    <form th:action="@{/shorten}" method="post">
+      <label for="destination">Destination</label>
+      <input type="url" id="destination" name="destination" th:value="${destination}"
+             placeholder="https://example.com/a/very/long/url"/>
+      <button type="submit">Shorten</button>
+    </form>
+
+    <!-- The broken rules, re-rendered: #4's type codes and details, all together. -->
+    <ul th:if="${violations != null}">
+      <li th:each="violation : ${violations}">
+        <code th:text="${violation.type}">invalid_scheme</code> —
+        <span th:text="${violation.detail}">The Destination must be an absolute http or https URL with a host.</span>
+      </li>
+    </ul>
+  </section>
+
+  <!-- The API Key, discoverable from the home page (issue #19): the credential for the
+       machine seam — the whole point of this page. -->
+  <p><a th:href="@{/me/key}">Your API key</a> — create Short Links with curl or Postman using
+    it as <code>Authorization: Bearer …</code>.</p>
+
+  <!-- The result of a form creation: the short_url, plus how to do the same from a terminal. -->
+  <section th:if="${created != null}">
+    <h2>Your Short Link</h2>
+    <p><a th:href="${created.shortUrl}" th:text="${created.shortUrl}">http://localhost:8080/aB3xK9z</a></p>
+    <p>It follows to <span th:text="${created.destination}">https://example.com/a/very/long/url</span>.</p>
+
+    <h3>The same, from a terminal</h3>
+    <p>The same creation works over the API with your API key — issued and shown once at
+      <a th:href="@{/me/key}">the key page</a>:</p>
+    <pre><code th:text="${curlHint}">curl -X POST http://localhost:8080/api/links …</code></pre>
+    <p>Or in Postman: a POST to the same URL with the header
+      <code>Authorization: Bearer &lt;your API key&gt;</code>.</p>
+  </section>
+</main>
+</body>
+</html>

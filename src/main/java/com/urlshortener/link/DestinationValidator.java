@@ -26,7 +26,7 @@ import java.util.Locale;
  * with latency and caching problems of its own) or reinterpret historical
  * notations (octal IPv4) that these rules do not mean.
  */
-final class DestinationValidator implements ConstraintValidator<Destination, String> {
+public final class DestinationValidator implements ConstraintValidator<Destination, String> {
 
     /** D11: a Destination is at most 2048 characters, boundary included. */
     static final int MAX_LENGTH = 2048;
@@ -45,8 +45,12 @@ final class DestinationValidator implements ConstraintValidator<Destination, Str
         return false;
     }
 
-    /** Every rule the candidate Destination breaks (D10: all of them, together). */
-    static List<DestinationRule> violationsOf(String destination) {
+    /**
+     * Every rule the candidate Destination breaks (D10: all of them, together) — the one
+     * analysis both surfaces share: Jakarta validation renders it as the {@code 400}
+     * problem+json violations list, and the browser form (#19) as its error list.
+     */
+    public static List<DestinationRule> violationsOf(String destination) {
         List<DestinationRule> violations = new ArrayList<>(3);
         if (destination == null || destination.isBlank()) {
             // no scheme at all: not a web URL — the only rule a blank value can break
