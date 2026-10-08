@@ -1,3 +1,9 @@
+server:
+  # Behind the HTTPS proxy (the Cloudflare tunnel today, Caddy in ticket #9) the app sees a
+  # plain HTTP connection. Honour X-Forwarded-Proto/Host so URLs the app builds from the
+  # request — the OAuth redirect_uri above all — come out as the public HTTPS URL (#16).
+  forward-headers-strategy: framework
+
 spring:
   application:
     name: urlshortener
