@@ -61,6 +61,17 @@ curl -X DELETE https://short.vamsi-alluri.me/api/links/aB3xK9z \
 - `404` problem+json when the Slug is unknown or belongs to another User (the two answer identically — no existence leak)
 - `409` problem+json when the Short Link is already Deactivated
 
+### Your Short Links — `GET /api/links`
+
+Authenticated (the same API key): one page of your Short Links, newest first — strictly your own; one owner never sees another's. Every entry is `{slug, short_url, destination, click_count, created_at, deactivated}` — `click_count` is the running total of follows (every live follow counts; 404s and 410s never do, and the count freezes at deactivation), and `deactivated` is `false` while the link still resolves, `true` once it is Deactivated (#6).
+
+```
+curl "https://short.vamsi-alluri.me/api/links?limit=100&offset=0" \
+  -H "Authorization: Bearer ush_..."
+```
+
+Pagination: `limit` (default 100; values over 100 clamp to 100) and `offset` (default 0). A non-integer value answers `400` problem+json. Without a valid key: `401` problem+json.
+
 ### Follow a Short Link — `GET /{slug}`
 
 - Live Short Link → `302 Found` with `Location: <destination>` (never a 301 — ADR-0001)
@@ -81,7 +92,7 @@ One key per User, ever: `ush_` + 32 random base62 characters (~190 bits). Issued
 
 ### Coming on the board
 
-#5 Click counts + your links · #19 the browser UI · #8 Moderation + abuse contact · #9 the real deployment.
+#19 the browser UI · #8 Moderation + abuse contact · #9 the real deployment.
 
 ## Running
 
