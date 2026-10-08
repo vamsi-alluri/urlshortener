@@ -5,8 +5,10 @@ package com.urlshortener.link;
  * the {@code 400} problem+json answer reports for it. One Destination can break
  * several rules at once — a {@code ftp://} URL on a private host, over the
  * length limit — and every broken rule is reported, together, in one response.
+ * The browser form of #19 renders the same broken rules, with the same type
+ * codes and details, as its form's error list.
  */
-enum DestinationRule {
+public enum DestinationRule {
 
     /**
      * Not a parsable, absolute http or https URL with a host: the value is not a
@@ -38,12 +40,12 @@ enum DestinationRule {
     }
 
     /** The machine-readable code, reported in the problem+json {@code violations} list (D10). */
-    String typeCode() {
+    public String typeCode() {
         return typeCode;
     }
 
     /** The human-readable explanation of what to fix. */
-    String detail() {
+    public String detail() {
         return detail;
     }
 
